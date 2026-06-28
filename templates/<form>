@@ -1,0 +1,20 @@
+<form action="/report" method="POST" enctype="multipart/form-data">
+    <div style="margin-bottom: 15px;">
+        <label for="plate">Plate Number:</label><br>
+        <input type="text" id="plate" name="plate_number" required placeholder="Enter license plate">
+    </div>
+
+    <div style="margin-bottom: 15px;">
+        <label for="loc">Location:</label><br>
+        <input type="text" id="loc" name="location" required placeholder="Enter parking location">
+    </div>
+
+    <div style="margin-bottom: 15px;">
+        <label for="img">Vehicle Image:</label><br>
+        <input type="file" id="img" name="image" required>
+    </div>
+
+    <button type="submit" style="background-color: #2ea44f; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer;">
+        Upload Image
+    </button>
+</form>
