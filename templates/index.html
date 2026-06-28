@@ -1,20 +1,70 @@
-<form action="/report" method="POST" enctype="multipart/form-data">
-    <div style="margin-bottom: 15px;">
-        <label for="plate">Plate Number:</label><br>
-        <input type="text" id="plate" name="plate_number" required placeholder="Enter license plate">
-    </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wrong Parking Detection</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container" style="max-width: 600px; margin: 40px auto; padding: 20px; font-family: Arial, sans-serif;">
+        <h2>Wrong Parking Detection System</h2>
+        
+        <!-- Flash messages notification -->
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            {% for message in messages %}
+              <div style="padding: 10px; background-color: #d4edda; color: #155724; margin-bottom: 20px; border-radius: 4px;">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
 
-    <div style="margin-bottom: 15px;">
-        <label for="loc">Location:</label><br>
-        <input type="text" id="loc" name="location" required placeholder="Enter parking location">
-    </div>
+        <!-- Main Form -->
+        <form action="/report" method="POST" enctype="multipart/form-data" style="background: #f9f9f9; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
+            <div style="margin-bottom: 15px;">
+                <label for="plate"><b>Plate Number:</b></label><br>
+                <input type="text" id="plate" name="plate_number" required placeholder="Enter license plate" style="width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box;">
+            </div>
 
-    <div style="margin-bottom: 15px;">
-        <label for="img">Vehicle Image:</label><br>
-        <input type="file" id="img" name="image" required>
-    </div>
+            <div style="margin-bottom: 15px;">
+                <label for="loc"><b>Location:</b></label><br>
+                <input type="text" id="loc" name="location" required placeholder="Enter parking location" style="width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box;">
+            </div>
 
-    <button type="submit" style="background-color: #2ea44f; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer;">
-        Upload Image
-    </button>
-</form>
+            <div style="margin-bottom: 15px;">
+                <label for="img"><b>Vehicle Image:</b></label><br>
+                <input type="file" id="img" name="image" required style="margin-top: 5px;">
+            </div>
+
+            <button type="submit" style="background-color: #2ea44f; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; width: 100%;">
+                Submit Report
+            </button>
+        </form>
+
+        <!-- Dynamic Table displaying historical reports from SQLite -->
+        <h3 style="margin-top: 40px;">Recent Reports Log</h3>
+        <table border="1" style="width: 100%; border-collapse: collapse; margin-top: 10px; text-align: left;">
+            <thead>
+                <tr style="background-color: #f2f2f2;">
+                    <th style="padding: 8px;">ID</th>
+                    <th style="padding: 8px;">Plate Number</th>
+                    <th style="padding: 8px;">Location</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for report in reports %}
+                <tr>
+                    <td style="padding: 8px;">{{ report.id }}</td>
+                    <td style="padding: 8px;">{{ report.plate_number }}</td>
+                    <td style="padding: 8px;">{{ report.location }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="3" style="padding: 8px; text-align: center; color: #777;">No reports submitted yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
