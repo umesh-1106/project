@@ -1,75 +1,66 @@
-from flask import Flask, render_template, request
-import sqlite3
 import os
-import easyocr
-from twilio.rest import Client
+import sqlite3
+from flask import Flask, render_template, request, redirect, url_for, flash
 
 app = Flask(__name__)
+app.secret_key = "supersecretkey"
 
-UPLOAD_FOLDER = "uploads"
+UPLOAD_FOLDER = 'uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-reader = easyocr.Reader(['en'])
+def get_db_connection():
+    conn = sqlite3.connect('database.db')
+    conn.row_factory = sqlite3.Row
+    return conn
 
-# Twilio Configuration
-ACCOUNT_SID = "YOUR_ACCOUNT_SID"
-AUTH_TOKEN = "YOUR_AUTH_TOKEN"
-TWILIO_NUMBER = "+1234567890"
-
-client = Client(ACCOUNT_SID, AUTH_TOKEN)
-
-
-def get_phone(vehicle):
-    conn = sqlite3.connect("database.db")
-    cur = conn.cursor()
-
-    cur.execute("SELECT phone FROM vehicles WHERE number=?", (vehicle,))
-    data = cur.fetchone()
-
+def init_db():
+    conn = get_db_connection()
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            plate_number TEXT NOT NULL,
+            location TEXT NOT NULL,
+            image_path TEXT
+        )
+    ''')
+    conn.commit()
     conn.close()
 
-    if data:
-        return data[0]
-    return None
+init_db()
 
+@app.route('/')
+def index():
+    conn = get_db_connection()
+    reports = conn.execute('SELECT * FROM reports ORDER BY id DESC').fetchall()
+    conn.close()
+    return render_template('index.html', reports=reports)
 
-@app.route("/")
-def home():
-    return render_template("index.html")
+@app.route('/report', methods=['POST'])
+def report_car():
+    plate_number = request.form.get('plate_number')
+    location = request.form.get('location')
+    file = request.files.get('image')
 
+    if not plate_number or not location:
+        flash("Please fill out all text fields.")
+        return redirect(url_for('index'))
 
-@app.route("/upload", methods=["POST"])
-def upload():
+    filename = None
+    if file and file.filename != '':
+        filename = file.filename
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
 
-    file = request.files["image"]
+    conn = get_db_connection()
+    conn.execute(
+        'INSERT INTO reports (plate_number, location, image_path) VALUES (?, ?, ?)',
+        (plate_number, location, filename)
+    )
+    conn.commit()
+    conn.close()
 
-    path = os.path.join(app.config["UPLOAD_FOLDER"], file.filename)
-    file.save(path)
+    flash("Report submitted successfully!")
+    return redirect(url_for('index'))
 
-    result = reader.readtext(path)
-
-    vehicle = ""
-
-    for r in result:
-        vehicle += r[1]
-
-    vehicle = vehicle.replace(" ", "")
-
-    phone = get_phone(vehicle)
-
-    if phone:
-
-        client.messages.create(
-            body=f"Warning! Your vehicle {vehicle} is wrongly parked.",
-            from_=TWILIO_NUMBER,
-            to=phone
-        )
-
-        return f"Message Sent Successfully to {vehicle}"
-
-    else:
-        return "Vehicle Number Not Found"
-
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     app.run(debug=True)
