@@ -1,46 +1,101 @@
-import base64
-import numpy as np
+from flask import Flask, render_template, Response, redirect, url_for
 import cv2
-from flask import Flask, request, jsonify, render_template
 
 app = Flask(__name__)
 
+# -------------------------------
+# Camera
+# -------------------------------
+camera = cv2.VideoCapture(0)
+
+def generate_frames():
+    while True:
+        success, frame = camera.read()
+
+        if not success:
+            break
+
+        ret, buffer = cv2.imencode('.jpg', frame)
+        frame = buffer.tobytes()
+
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' +
+               frame +
+               b'\r\n')
+
+
+# -------------------------------
+# Routes
+# -------------------------------
+
 @app.route('/')
-def index():
-    return render_template('index.html')
+def home():
+    return redirect(url_for('dashboard'))
 
-@app.route('/process_frame', methods=['POST'])
-def process_frame():
-    # 1. Grab the json payload sent from the browser
-    data = request.get_json()
-    if not data or 'image' not in data:
-        return jsonify({'error': 'No image data received'}), 400
 
-    # 2. Extract and decode the base64 string
-    header, encoded = data['image'].split(",", 1)
-    decoded_bytes = base64.b64decode(encoded)
-    
-    # 3. Convert bytes into an OpenCV image array
-    nparr = np.frombuffer(decoded_bytes, np.uint8)
-    frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-    
-    if frame is None:
-        return jsonify({'error': 'Failed to decode image'}), 400
+@app.route('/login')
+def login():
+    return render_template('login.html')
 
-    # -----------------------------------------------------------------
-    # INSERT YOUR DETECTION CODE HERE
-    # Run your vehicle and parking zone algorithms directly on 'frame'
-    # Example: frame = your_detection_model.detect(frame)
-    # -----------------------------------------------------------------
-    
-    # 4. Re-encode the newly drawn frame back into a JPEG buffer
-    _, buffer = cv2.imencode('.jpg', frame)
-    processed_base64 = base64.b64encode(buffer).decode('utf-8')
-    
-    # 5. Return the string right back to the browser
-    return jsonify({
-        'processed_image': f"data:image/jpeg;base64,{processed_base64}"
-    })
 
-if __name__ == '__main__':
-    app.run()
+@app.route('/dashboard')
+def dashboard():
+
+    return render_template(
+        'dashboard.html',
+        vehicle_count=0,
+        wrong_count=0,
+        today_count=0,
+        detected_vehicle="Waiting...",
+        owner_name="--",
+        parking_status="Waiting",
+        location="--",
+        detected_time="--",
+        records=[]
+    )
+
+
+@app.route('/camera')
+def camera_page():
+
+    return render_template(
+        'camera.html',
+        detected_vehicle="Waiting...",
+        owner_name="--",
+        vehicle_type="--",
+        parking_zone="--",
+        parking_status="Waiting",
+        detected_time="--"
+    )
+
+
+@app.route('/register')
+def register():
+
+    return render_template("register.html")
+
+
+@app.route('/history')
+def history():
+
+    return render_template(
+        "history.html",
+        history=[]
+    )
+
+
+@app.route('/video_feed')
+def video_feed():
+
+    return Response(
+        generate_frames(),
+        mimetype='multipart/x-mixed-replace; boundary=frame'
+    )
+
+
+# -------------------------------
+# Main
+# -------------------------------
+
+if __name__ == "__main__":
+    app.run(debug=True)
