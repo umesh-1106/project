@@ -1,0 +1,51 @@
+<!-- This tag will display the processed live detection results -->
+<img id="live-feed" src="" width="100%" style="border-radius: 8px;" alt="Live Detection Stream">
+
+<!-- Hidden canvas used to capture camera frames -->
+<canvas id="hidden-canvas" style="display:none;"></canvas>
+
+<script>
+  const video = document.createElement('video');
+  const canvas = document.getElementById('hidden-canvas');
+  const ctx = canvas.getContext('2d');
+  const liveFeedImg = document.getElementById('live-feed');
+
+  // Request access to your laptop webcam via the browser
+  navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
+    .then(stream => {
+      video.srcObject = stream;
+      video.play();
+      // Send a snapshot frame to Render every 200 milliseconds (5 frames per second)
+      setInterval(sendFrame, 200); 
+    })
+    .catch(err => {
+      console.error("Webcam access denied or unavailable: ", err);
+    });
+
+  function sendFrame() {
+    if (video.videoWidth === 0) return;
+    
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    // Package the frame into a Base64 string
+    const dataUrl = canvas.toDataURL('image/jpeg');
+    
+    // POST the frame directly to your Render server application
+    fetch('/process_frame', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: dataUrl })
+    })
+    .then(response => response.json())
+    .then(data => {
+      // Render sends back the processed frame with detection boxes
+      liveFeedImg.src = data.processed_image;
+      
+      // OPTIONAL: Update text fields on your UI if your backend returns status text
+      // document.getElementById('status-field').innerText = data.status;
+    })
+    .catch(err => console.error("Error sending frame to server:", err));
+  }
+</script>
